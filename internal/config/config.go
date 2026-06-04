@@ -20,8 +20,10 @@ type Config struct {
 
 	AWS AWSConfig
 
-	GotenbergURL string
-	PIFLocalPath string // sample PDF used when AppEnv == "local"
+	// Laravel is the upstream Laravel app the API delegates to for work it does
+	// not reproduce (e.g. PIF PDF generation).
+	LaravelURL     string
+	InternalSecret string
 
 	Reverb ReverbConfig
 }
@@ -79,8 +81,8 @@ func Load() *Config {
 			Endpoint:        env("AWS_ENDPOINT", ""),
 			UsePathStyle:    envBool("AWS_USE_PATH_STYLE_ENDPOINT", false),
 		},
-		GotenbergURL: env("GOTENBERG_URL", "http://localhost:3000"),
-		PIFLocalPath: env("PIF_LOCAL_PATH", ""),
+		LaravelURL:     env("LARAVEL_URL", "http://localhost"),
+		InternalSecret: env("INTERNAL_API_SECRET", ""),
 		Reverb: ReverbConfig{
 			AppID:  env("REVERB_APP_ID", ""),
 			Key:    env("REVERB_APP_KEY", ""),

@@ -7,7 +7,7 @@ import (
 	"umrahservice-api/internal/config"
 	"umrahservice-api/internal/db"
 	"umrahservice-api/internal/handlers"
-	"umrahservice-api/internal/pdf"
+	"umrahservice-api/internal/laravel"
 	"umrahservice-api/internal/router"
 	"umrahservice-api/internal/storage"
 )
@@ -26,8 +26,8 @@ func main() {
 	}
 
 	b := broadcast.New(cfg)
-	pdfClient := pdf.NewClient(cfg.GotenbergURL)
-	h := handlers.New(database, store, cfg, b, pdfClient)
+	laravelClient := laravel.NewClient(cfg.LaravelURL, cfg.InternalSecret)
+	h := handlers.New(database, store, cfg, b, laravelClient)
 	r := router.New(database, h)
 
 	addr := ":" + cfg.Port

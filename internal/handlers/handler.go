@@ -9,8 +9,8 @@ import (
 	"umrahservice-api/internal/auth"
 	"umrahservice-api/internal/broadcast"
 	"umrahservice-api/internal/config"
+	"umrahservice-api/internal/laravel"
 	"umrahservice-api/internal/models"
-	"umrahservice-api/internal/pdf"
 	"umrahservice-api/internal/storage"
 	"umrahservice-api/internal/support"
 )
@@ -21,11 +21,11 @@ type Handler struct {
 	Storage     *storage.Storage
 	Cfg         *config.Config
 	Broadcaster *broadcast.Broadcaster
-	PDF         *pdf.Client
+	Laravel     *laravel.Client
 }
 
-func New(db *gorm.DB, store *storage.Storage, cfg *config.Config, b *broadcast.Broadcaster, p *pdf.Client) *Handler {
-	return &Handler{DB: db, Storage: store, Cfg: cfg, Broadcaster: b, PDF: p}
+func New(db *gorm.DB, store *storage.Storage, cfg *config.Config, b *broadcast.Broadcaster, l *laravel.Client) *Handler {
+	return &Handler{DB: db, Storage: store, Cfg: cfg, Broadcaster: b, Laravel: l}
 }
 
 // principal returns the authenticated principal (always set inside auth group).
