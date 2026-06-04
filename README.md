@@ -58,6 +58,28 @@ All of `routes/api.php`: `/api/login`, `/api/logout`, `/api/broadcasting/auth`,
 go test ./...   # unit tests for signing, token hashing, abilities, helpers
 ```
 
+### Integration tests (against the dev DB)
+
+Tests under `test/integration/` boot the full Gin engine and hit endpoints
+against a live database. They are gated behind the `integration` build tag, so
+the plain `go test ./...` run above stays fast and DB-free.
+
+```bash
+go test -tags=integration ./test/integration/...
+```
+
+Connection credentials come from the project-root `.env`, but the schema is
+forced to the dedicated test database `umrahservice_app_test` (never the app
+DB). Override per-run with `DB_DATABASE`:
+
+```bash
+DB_DATABASE=some_other_schema go test -tags=integration ./test/integration/...
+```
+
+The tests authenticate as the first existing user, seed a real Sanctum token,
+and delete it again on cleanup — no data is left behind. If the DB is
+unreachable they `t.Skip` rather than fail.
+
 ### End-to-end (against the live DB)
 
 Authenticated endpoints need a valid bearer token. Either:
