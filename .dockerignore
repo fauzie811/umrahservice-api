@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.env.example
+*.local
+tmp/
+bin/
+Dockerfile
+.dockerignore
+README.md
