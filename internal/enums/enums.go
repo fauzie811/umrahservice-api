@@ -107,6 +107,27 @@ var incidentStatusLabels = map[string]string{
 	"closed":      "Closed",
 }
 
+// BaggageCheckpoint (group_baggage_counts.checkpoint)
+const (
+	BaggageBeforeDeparture = "before_departure"
+	BaggageOnArrival       = "on_arrival"
+	BaggageBeforeCheckIn   = "before_check_in"
+	BaggageAfterCheckOut   = "after_check_out"
+	BaggageCityTransfer    = "city_transfer"
+	BaggageBeforeReturn    = "before_return"
+	BaggageOnReturn        = "on_return"
+)
+
+var baggageCheckpointLabels = map[string]string{
+	BaggageBeforeDeparture: "Before Departure",
+	BaggageOnArrival:       "On Arrival",
+	BaggageBeforeCheckIn:   "Before Hotel Check-In",
+	BaggageAfterCheckOut:   "After Hotel Check-Out",
+	BaggageCityTransfer:    "City Transfer",
+	BaggageBeforeReturn:    "Before Return Departure",
+	BaggageOnReturn:        "On Return Arrival",
+}
+
 // luggageTagTints maps a luggage tag color value to its subtle background tint
 // (Tailwind ~50 shade). "none"/unknown yields no tint.
 var luggageTagTints = map[string]string{
@@ -135,6 +156,15 @@ func GroupTaskTeamLabel(v string) string    { return label(groupTaskTeamLabels, 
 func IncidentCategoryLabel(v string) string { return label(incidentCategoryLabels, v) }
 func IncidentSeverityLabel(v string) string { return label(incidentSeverityLabels, v) }
 func IncidentStatusLabel(v string) string   { return label(incidentStatusLabels, v) }
+
+// BaggageCheckpointLabel returns the mapped label for a checkpoint value.
+func BaggageCheckpointLabel(v string) string { return label(baggageCheckpointLabels, v) }
+
+// IsBaggageCheckpoint reports whether v is a valid checkpoint value.
+func IsBaggageCheckpoint(v string) bool {
+	_, ok := baggageCheckpointLabels[v]
+	return ok
+}
 
 // LuggageTagTint returns the tint hex for the given color value, or empty string
 // when there is no tint (mirrors PHP's nullable return).
