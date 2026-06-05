@@ -55,6 +55,7 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 		authed.GET("/schedules", h.Schedule)
 
 		authed.GET("/tasks", h.TaskIndex)
+		authed.GET("/tasks/:groupTask", h.TaskShow)
 		authed.POST("/tasks/:groupTask/complete", h.TaskComplete)
 		authed.POST("/tasks/:groupTask/checklist/:item/check", h.TaskCheckItem)
 		authed.DELETE("/tasks/:groupTask/checklist/:item/check", h.TaskUncheckItem)
