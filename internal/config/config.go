@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -15,6 +16,10 @@ type Config struct {
 	AppEnv string
 	AppURL string
 	Port   string
+
+	// CORSAllowedOrigins lists the web client origins permitted to call the API
+	// with credentials (cookies). Comma-separated env CORS_ALLOWED_ORIGINS.
+	CORSAllowedOrigins []string
 
 	DB DBConfig
 
@@ -62,9 +67,10 @@ func Load() *Config {
 	_ = godotenv.Load()
 
 	return &Config{
-		AppEnv: env("APP_ENV", "production"),
-		AppURL: env("APP_URL", "http://localhost"),
-		Port:   env("PORT", "8000"),
+		AppEnv:             env("APP_ENV", "production"),
+		AppURL:             env("APP_URL", "http://localhost"),
+		Port:               env("PORT", "8000"),
+		CORSAllowedOrigins: envList("CORS_ALLOWED_ORIGINS", nil),
 		DB: DBConfig{
 			Host:     env("DB_HOST", "127.0.0.1"),
 			Port:     env("DB_PORT", "3306"),
@@ -109,6 +115,22 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// envList parses a comma-separated env var into a trimmed, non-empty slice.
+func envList(key string, fallback []string) []string {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func envBool(key string, fallback bool) bool {

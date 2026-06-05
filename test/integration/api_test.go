@@ -5,6 +5,7 @@ package integration
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -22,6 +23,51 @@ func TestHealth(t *testing.T) {
 	}
 	if body["status"] != "ok" {
 		t.Fatalf("status = %v, want ok", body["status"])
+	}
+}
+
+func TestCsrfCookie(t *testing.T) {
+	s := setupServer(t)
+
+	rec := s.do(t, http.MethodGet, "/sanctum/csrf-cookie", "")
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("GET /sanctum/csrf-cookie = %d, want 204", rec.Code)
+	}
+
+	var xsrf *http.Cookie
+	for _, ck := range rec.Result().Cookies() {
+		if ck.Name == "XSRF-TOKEN" {
+			xsrf = ck
+		}
+	}
+	if xsrf == nil {
+		t.Fatalf("XSRF-TOKEN cookie not set")
+	}
+	if xsrf.Value == "" {
+		t.Fatalf("XSRF-TOKEN cookie is empty")
+	}
+	if xsrf.HttpOnly {
+		t.Fatalf("XSRF-TOKEN cookie must be readable by JS (HttpOnly=false)")
+	}
+}
+
+func TestCORSPreflight(t *testing.T) {
+	s := setupServer(t)
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/login", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	rec := httptest.NewRecorder()
+	s.engine.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("OPTIONS /api/login = %d, want 204", rec.Code)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
+		t.Fatalf("Allow-Origin = %q, want reflected origin", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("Allow-Credentials = %q, want true", got)
 	}
 }
 
