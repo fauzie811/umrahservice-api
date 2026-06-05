@@ -71,6 +71,23 @@ func (h *Handler) TaskIndex(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": data})
 }
 
+// TaskShow mirrors TaskController::show.
+func (h *Handler) TaskShow(c *gin.Context) {
+	p := h.principal(c)
+	taskID := c.Param("groupTask")
+
+	var task models.GroupTask
+	err := h.visibleTasksQuery(p).
+		Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).
+		Where("id = ?", taskID).First(&task).Error
+	if err != nil {
+		forbidden(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": h.transformTask(&task)})
+}
+
 // TaskComplete mirrors TaskController::complete.
 func (h *Handler) TaskComplete(c *gin.Context) {
 	p := h.principal(c)
