@@ -51,7 +51,7 @@ func (h *Handler) TaskIndex(c *gin.Context) {
 		}
 	}
 
-	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser")
+	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort)
 	if status != "" {
 		q = q.Where("status = ?", status)
 	} else {
@@ -89,24 +89,11 @@ func (h *Handler) TaskComplete(c *gin.Context) {
 		return
 	}
 
-	checklist := h.decodeChecklist(task.Checklist)
-	inputs, hasChecklist := parseChecklistBools(c)
-	if hasChecklist && len(checklist) > 0 {
-		for i := range checklist {
-			if v, ok := inputs[i]; ok {
-				checklist[i]["done"] = v
-			} else {
-				checklist[i]["done"] = truthy(checklist[i]["done"])
-			}
-		}
-	}
-	for _, item := range checklist {
-		if !truthy(item["done"]) {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
-				"message": "All checklist items must be checked before completing this task.",
-			})
-			return
-		}
+	if h.hasIncompleteChecklist(task.ID) {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"message": "All checklist items must be checked before completing this task.",
+		})
+		return
 	}
 
 	completionPhoto := task.CompletionPhoto
@@ -136,55 +123,131 @@ func (h *Handler) TaskComplete(c *gin.Context) {
 		"status":           enums.GroupTaskCompleted,
 		"completed_at":     completedAt,
 		"completion_photo": completionPhoto,
-		"checklist":        jsonArray(checklist),
 		"completion_note":  note,
 	}
 	h.DB.Model(&models.GroupTask{}).Where("id = ?", task.ID).Updates(updates)
 
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").First(&task, task.ID)
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Task completed successfully",
 		"data":    h.transformTask(&task),
 	})
 }
 
-// TaskUpdateChecklist mirrors TaskController::updateChecklist.
-func (h *Handler) TaskUpdateChecklist(c *gin.Context) {
+// TaskCheckItem mirrors TaskController::checkItem.
+func (h *Handler) TaskCheckItem(c *gin.Context) {
 	p := h.principal(c)
-	taskID := c.Param("groupTask")
 
-	inputs, present := parseChecklistBools(c)
-	if !present {
-		validationError(c, map[string][]string{"checklist": {"The checklist field is required."}})
+	task, item, ok := h.authorizeChecklistItem(c, p)
+	if !ok {
 		return
 	}
+
+	fh, ferr := c.FormFile("photo")
+	hasPhoto := ferr == nil && fh != nil
+
+	if item.PhotoRequired && !hasPhoto {
+		validationError(c, map[string][]string{"photo": {"The photo field is required."}})
+		return
+	}
+
+	photoPath := item.Photo
+	if hasPhoto {
+		if !isImage(fh.Filename) {
+			validationError(c, map[string][]string{"photo": {"The photo field must be an image."}})
+			return
+		}
+		content, contentType, ext, rerr := readUpload(fh)
+		if rerr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Could not read upload."})
+			return
+		}
+		if photoPath != nil && *photoPath != "" {
+			_ = h.Storage.Delete(c.Request.Context(), *photoPath)
+		}
+		key, serr := h.Storage.Store(c.Request.Context(), "task_checklist_photos", ext, contentType, content)
+		if serr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Could not store photo."})
+			return
+		}
+		photoPath = &key
+	}
+
+	now := time.Now()
+	h.DB.Model(item).Updates(map[string]interface{}{
+		"photo":   photoPath,
+		"done":    true,
+		"done_at": &now,
+	})
+
+	h.respondWithTask(c, task)
+}
+
+// TaskUncheckItem mirrors TaskController::uncheckItem.
+func (h *Handler) TaskUncheckItem(c *gin.Context) {
+	p := h.principal(c)
+
+	task, item, ok := h.authorizeChecklistItem(c, p)
+	if !ok {
+		return
+	}
+
+	if item.Photo != nil && *item.Photo != "" {
+		_ = h.Storage.Delete(c.Request.Context(), *item.Photo)
+	}
+
+	h.DB.Model(item).Updates(map[string]interface{}{
+		"photo":   nil,
+		"done":    false,
+		"done_at": nil,
+	})
+
+	h.respondWithTask(c, task)
+}
+
+// authorizeChecklistItem mirrors TaskController::authorizeChecklistItem. It
+// returns the visible task and the resolved checklist item, or writes the
+// matching error response and reports ok=false.
+func (h *Handler) authorizeChecklistItem(c *gin.Context, p *auth.Principal) (*models.GroupTask, *models.GroupTaskChecklistItem, bool) {
+	taskID := c.Param("groupTask")
 
 	var task models.GroupTask
 	if err := h.visibleTasksQuery(p).Where("id = ?", taskID).First(&task).Error; err != nil {
 		forbidden(c)
-		return
+		return nil, nil, false
 	}
 
-	checklist := h.decodeChecklist(task.Checklist)
-	for i := range checklist {
-		if v, ok := inputs[i]; ok {
-			checklist[i]["done"] = v
-		} else {
-			checklist[i]["done"] = truthy(checklist[i]["done"])
-		}
+	var item models.GroupTaskChecklistItem
+	if err := h.DB.Where("id = ?", c.Param("item")).First(&item).Error; err != nil {
+		notFound(c, "Not Found")
+		return nil, nil, false
 	}
 
-	h.DB.Model(&models.GroupTask{}).Where("id = ?", task.ID).Update("checklist", jsonArray(checklist))
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").First(&task, task.ID)
-	c.JSON(http.StatusOK, gin.H{"data": h.transformTask(&task)})
+	if item.GroupTaskID != task.ID {
+		notFound(c, "Not Found")
+		return nil, nil, false
+	}
+
+	return &task, &item, true
 }
 
-func (h *Handler) decodeChecklist(raw interface{ MarshalJSON() ([]byte, error) }) []map[string]interface{} {
-	out := []map[string]interface{}{}
-	if b, err := raw.MarshalJSON(); err == nil {
-		_ = unmarshalChecklist(b, &out)
-	}
-	return out
+func (h *Handler) respondWithTask(c *gin.Context, task *models.GroupTask) {
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).First(task, task.ID)
+	c.JSON(http.StatusOK, gin.H{"data": h.transformTask(task)})
+}
+
+// hasIncompleteChecklist mirrors GroupTask::hasIncompleteChecklist.
+func (h *Handler) hasIncompleteChecklist(taskID uint64) bool {
+	var count int64
+	h.DB.Model(&models.GroupTaskChecklistItem{}).
+		Where("group_task_id = ? AND done = ?", taskID, false).
+		Count(&count)
+	return count > 0
+}
+
+// orderBySort orders preloaded checklist items by their sort column.
+func orderBySort(db *gorm.DB) *gorm.DB {
+	return db.Order("sort")
 }
 
 func (h *Handler) transformTask(task *models.GroupTask) gin.H {
@@ -233,13 +296,34 @@ func (h *Handler) transformTask(task *models.GroupTask) gin.H {
 		"scheduled_at":         support.ISO8601(task.ScheduledAt),
 		"completed_at":         support.ISO8601(task.CompletedAt),
 		"completion_photo_url": photoURL,
-		"checklist":            h.decodeChecklist(task.Checklist),
+		"checklist":            h.transformChecklist(task.ChecklistItems),
 		"completion_note":      task.CompletionNote,
 		"assigned_user":        assigned,
 		"assigned_role":        task.AssignedRole,
 		"is_auto_generated":    task.IsAutoGenerated,
 		"meta":                 rawJSONOrEmpty(task.Meta),
 	}
+}
+
+func (h *Handler) transformChecklist(items []models.GroupTaskChecklistItem) []gin.H {
+	out := make([]gin.H, 0, len(items))
+	for i := range items {
+		item := &items[i]
+		var photoURL *string
+		if item.Photo != nil && *item.Photo != "" {
+			url := h.Storage.URL(*item.Photo)
+			photoURL = &url
+		}
+		out = append(out, gin.H{
+			"id":             item.ID,
+			"label":          item.Label,
+			"done":           item.Done,
+			"photo_required": item.PhotoRequired,
+			"photo_url":      photoURL,
+			"done_at":        support.ISO8601(item.DoneAt),
+		})
+	}
+	return out
 }
 
 func groupName(g *models.Group) interface{} {
