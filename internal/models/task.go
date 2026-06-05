@@ -23,15 +23,15 @@ type GroupTask struct {
 	Status          *string        `gorm:"column:status"`
 	CompletedAt     *time.Time     `gorm:"column:completed_at"`
 	CompletionPhoto *string        `gorm:"column:completion_photo"`
-	Checklist       datatypes.JSON `gorm:"column:checklist"`
 	CompletionNote  *string        `gorm:"column:completion_note"`
 	GenerationKey   *string        `gorm:"column:generation_key"`
 	Meta            datatypes.JSON `gorm:"column:meta"`
 	CreatedAt       time.Time      `gorm:"column:created_at"`
 	UpdatedAt       time.Time      `gorm:"column:updated_at"`
 
-	Group        *Group `gorm:"foreignKey:GroupID"`
-	AssignedUser *User  `gorm:"foreignKey:AssignedUserID"`
+	Group          *Group                   `gorm:"foreignKey:GroupID"`
+	AssignedUser   *User                    `gorm:"foreignKey:AssignedUserID"`
+	ChecklistItems []GroupTaskChecklistItem `gorm:"foreignKey:GroupTaskID"`
 }
 
 func (GroupTask) TableName() string { return "group_tasks" }
@@ -39,10 +39,4 @@ func (GroupTask) TableName() string { return "group_tasks" }
 // IsScheduledInFuture mirrors GroupTask::isScheduledInFuture.
 func (t *GroupTask) IsScheduledInFuture() bool {
 	return t.ScheduledAt != nil && t.ScheduledAt.After(time.Now())
-}
-
-// ChecklistItem is one entry of GroupTask.Checklist.
-type ChecklistItem struct {
-	Title string `json:"title,omitempty"`
-	Done  bool   `json:"done"`
 }

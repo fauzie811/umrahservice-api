@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -13,13 +11,6 @@ import (
 
 func nopCloser(b []byte) io.ReadCloser {
 	return io.NopCloser(bytes.NewReader(b))
-}
-
-func unmarshalChecklist(b []byte, out *[]map[string]interface{}) error {
-	if len(b) == 0 || string(b) == "null" {
-		return nil
-	}
-	return json.Unmarshal(b, out)
 }
 
 // truthy mirrors PHP's (bool) cast for checklist done flags.
@@ -35,57 +26,6 @@ func truthy(v interface{}) bool {
 		return t == "1" || strings.EqualFold(t, "true")
 	}
 	return false
-}
-
-// parseChecklistBools extracts the request's checklist booleans, keyed by index.
-// Supports a JSON body ({"checklist":[true,false]} or {"checklist":{"0":true}})
-// and multipart/form-urlencoded keys (checklist[0]=1).
-func parseChecklistBools(c *gin.Context) (map[int]bool, bool) {
-	out := map[int]bool{}
-	present := false
-
-	ct := c.ContentType()
-	if strings.Contains(ct, "application/json") {
-		var body struct {
-			Checklist json.RawMessage `json:"checklist"`
-		}
-		if err := json.Unmarshal(readBody(c), &body); err == nil && len(body.Checklist) > 0 {
-			present = true
-			// Try array form.
-			var arr []interface{}
-			if json.Unmarshal(body.Checklist, &arr) == nil {
-				for i, v := range arr {
-					out[i] = truthy(v)
-				}
-				return out, present
-			}
-			// Try map form.
-			var m map[string]interface{}
-			if json.Unmarshal(body.Checklist, &m) == nil {
-				for k, v := range m {
-					if i, err := strconv.Atoi(k); err == nil {
-						out[i] = truthy(v)
-					}
-				}
-			}
-		}
-		return out, present
-	}
-
-	// Form-encoded: checklist[<i>]=<bool>
-	_ = c.Request.ParseMultipartForm(32 << 20)
-	if c.Request.PostForm != nil {
-		for key, vals := range c.Request.PostForm {
-			if strings.HasPrefix(key, "checklist[") && strings.HasSuffix(key, "]") {
-				idxStr := key[len("checklist[") : len(key)-1]
-				if i, err := strconv.Atoi(idxStr); err == nil && len(vals) > 0 {
-					present = true
-					out[i] = truthy(vals[0])
-				}
-			}
-		}
-	}
-	return out, present
 }
 
 // readBody reads and restores the request body so it can be read again.

@@ -53,7 +53,8 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 
 		authed.GET("/tasks", h.TaskIndex)
 		authed.POST("/tasks/:groupTask/complete", h.TaskComplete)
-		authed.PATCH("/tasks/:groupTask/checklist", h.TaskUpdateChecklist)
+		authed.POST("/tasks/:groupTask/checklist/:item/check", h.TaskCheckItem)
+		authed.DELETE("/tasks/:groupTask/checklist/:item/check", h.TaskUncheckItem)
 		authed.GET("/tasks/:groupTask/messages", h.TaskMessages)
 		authed.POST("/tasks/:groupTask/messages", h.TaskMessageStore)
 
