@@ -13,9 +13,12 @@ import (
 // New builds the Gin engine mirroring routes/api.php (mounted under /api).
 func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery())
+	r.Use(gin.Logger(), gin.Recovery(), cors(h.Cfg.CORSAllowedOrigins))
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+
+	// Sanctum CSRF cookie endpoint (root path, mirroring Laravel Sanctum).
+	r.GET("/sanctum/csrf-cookie", h.CsrfCookie)
 
 	api := r.Group("/api")
 
