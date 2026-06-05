@@ -1,13 +1,16 @@
 # Build stage
 FROM golang:1.26-alpine AS builder
 
+# Install certs + timezone data so they can be copied into the scratch image
+RUN apk --no-cache add ca-certificates tzdata
+
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy go.mod and go.sum files
 COPY go.mod go.sum ./
 
-# Download all dependencies. 
+# Download all dependencies.
 # Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
 
@@ -15,23 +18,23 @@ RUN go mod download
 COPY . .
 
 # Build the Go app statically with stripped symbols for a smaller binary size
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-w -s" -o server ./cmd/server
 
 # Run stage
-FROM alpine:latest
+FROM scratch
 
-# Install ca-certificates (for secure outgoing network calls) and tzdata (for timezone handling)
-RUN apk --no-cache add ca-certificates tzdata
-
-# Create a non-root user for running the application securely
-RUN adduser -D -u 1000 appuser
-USER appuser
+# Copy CA certificates (for secure outgoing network calls) and timezone data
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 # Set the working directory
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/server .
+
+# Run as non-root (nobody)
+USER 65534:65534
 
 # Expose port 8000 by default (respects the PORT env variable at runtime)
 EXPOSE 8000
