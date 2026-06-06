@@ -67,6 +67,9 @@ func CanViewIncident(db *gorm.DB, p *Principal, inc *models.Incident) bool {
 	if !p.IsInternalStaff() {
 		return false
 	}
+	if p.IsAdminOrOperator() {
+		return true
+	}
 	return inc.Group == nil || CanViewGroup(db, p, inc.Group)
 }
 
@@ -98,7 +101,7 @@ func (p *Principal) CanDeleteIncident() bool {
 // --- GroupTask ---
 
 func CanViewGroupTask(p *Principal, task *models.GroupTask) bool {
-	if p.IsSuperAdmin() || p.HasRole(enums.RoleAdmin) {
+	if p.IsSuperAdmin() || p.IsAdminOrOperator() {
 		return true
 	}
 	if !p.Can("group-tasks.view") {

@@ -40,6 +40,23 @@ func applyGroupRoleScopes(q *gorm.DB, p *auth.Principal, includeCheckIn bool) *g
 	return q
 }
 
+// validGroupStatuses mirrors Umrahservice\Groups\Enums\GroupStatus.
+var validGroupStatuses = map[string]bool{
+	"draft": true, "pending": true, "confirmed": true, "cancelled": true,
+}
+
+// resolveGroupStatusFilter mirrors GroupController::resolveStatusFilter. Only
+// Admin/Finance may override the default via the `status` query param; every
+// other role is locked to confirmed groups.
+func resolveGroupStatusFilter(c *gin.Context, p *auth.Principal) string {
+	if p.HasRole(enums.RoleAdmin) || p.HasRole(enums.RoleFinance) || p.IsSuperAdmin() {
+		if requested := c.Query("status"); validGroupStatuses[requested] {
+			return requested
+		}
+	}
+	return "confirmed"
+}
+
 // GroupIndex mirrors Api\GroupController::index.
 func (h *Handler) GroupIndex(c *gin.Context) {
 	p := h.principal(c)
@@ -47,7 +64,8 @@ func (h *Handler) GroupIndex(c *gin.Context) {
 
 	q := h.DB.Model(&models.Group{}).
 		Preload("Customer").
-		Scopes(models.CurrentPeriod(periodID, true), models.Confirmed)
+		Scopes(models.CurrentPeriod(periodID, true)).
+		Where("status = ?", resolveGroupStatusFilter(c, p))
 	q = applyGroupRoleScopes(q, p, true)
 
 	var groups []models.Group

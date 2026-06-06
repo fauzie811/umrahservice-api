@@ -3,6 +3,7 @@ package auth
 import (
 	"gorm.io/gorm"
 
+	"umrahservice-api/internal/enums"
 	"umrahservice-api/internal/models"
 )
 
@@ -92,4 +93,10 @@ func (p *Principal) Can(permission string) bool {
 // IsSuperAdmin mirrors Gate::before (user id == 1 bypasses all gates).
 func (p *Principal) IsSuperAdmin() bool {
 	return p.User != nil && p.User.ID == 1
+}
+
+// IsAdminOrOperator mirrors User::isAdminOrOperator. Admins and operators may
+// view every group task and incident regardless of assignment.
+func (p *Principal) IsAdminOrOperator() bool {
+	return p.HasRole(enums.RoleAdmin, enums.RoleAdminOperator, enums.RoleOperator)
 }

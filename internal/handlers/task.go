@@ -18,7 +18,7 @@ import (
 // visibleTasksQuery mirrors TaskController::visibleTasksQuery.
 func (h *Handler) visibleTasksQuery(p *auth.Principal) *gorm.DB {
 	q := h.DB.Model(&models.GroupTask{})
-	if p.HasRole(enums.RoleAdmin) || p.IsSuperAdmin() {
+	if p.IsAdminOrOperator() || p.IsSuperAdmin() {
 		return q
 	}
 	return q.Where(
