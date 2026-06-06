@@ -110,6 +110,62 @@ func TestUserAuthenticated(t *testing.T) {
 	}
 }
 
+func TestOverview(t *testing.T) {
+	s := setupServer(t)
+
+	// Overview is admin/operator-only. Find a user holding one of those roles,
+	// skipping if the dev DB has none.
+	var userID uint64
+	err := s.db.Table("model_has_roles AS mhr").
+		Joins("JOIN roles r ON r.id = mhr.role_id").
+		Where("mhr.model_type = ? AND r.name IN ?", "user", []string{"Admin", "Admin Operator", "Operator"}).
+		Order("mhr.model_id asc").
+		Limit(1).
+		Pluck("mhr.model_id", &userID).Error
+	if err != nil || userID == 0 {
+		t.Skip("no admin/operator user in dev DB to authenticate as")
+	}
+	token := s.seedToken(t, userID)
+
+	rec := s.do(t, http.MethodGet, "/api/overview", token)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/overview = %d, want 200 (body: %s)", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Data struct {
+			Tasks struct {
+				Active  *float64 `json:"active"`
+				Overdue *float64 `json:"overdue"`
+			} `json:"tasks"`
+			Incidents struct {
+				Active     *float64           `json:"active"`
+				BySeverity map[string]float64 `json:"by_severity"`
+				ByStatus   map[string]float64 `json:"by_status"`
+			} `json:"incidents"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body.Data.Tasks.Active == nil || body.Data.Tasks.Overdue == nil {
+		t.Errorf("tasks counts missing: %s", rec.Body.String())
+	}
+	if body.Data.Incidents.Active == nil {
+		t.Errorf("incidents.active missing: %s", rec.Body.String())
+	}
+	for _, key := range []string{"low", "medium", "high", "critical"} {
+		if _, ok := body.Data.Incidents.BySeverity[key]; !ok {
+			t.Errorf("incidents.by_severity missing %q", key)
+		}
+	}
+	for _, key := range []string{"open", "in_progress"} {
+		if _, ok := body.Data.Incidents.ByStatus[key]; !ok {
+			t.Errorf("incidents.by_status missing %q", key)
+		}
+	}
+}
+
 func TestWalletBalance(t *testing.T) {
 	s := setupServer(t)
 	token := s.seedToken(t, s.firstUserID(t))
