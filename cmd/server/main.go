@@ -15,6 +15,10 @@ import (
 func main() {
 	cfg := config.Load()
 
+	if err := cfg.ApplyTimezone(); err != nil {
+		log.Fatalf("timezone config failed: %v", err)
+	}
+
 	database, err := db.Open(cfg)
 	if err != nil {
 		log.Fatalf("database connection failed: %v", err)

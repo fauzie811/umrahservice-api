@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -16,6 +17,10 @@ type Config struct {
 	AppEnv string
 	AppURL string
 	Port   string
+
+	// AppTimezone is the IANA zone name applied to time.Local at startup so the
+	// service shares a timezone with the Laravel app (env APP_TIMEZONE).
+	AppTimezone string
 
 	// CORSAllowedOrigins lists the web client origins permitted to call the API
 	// with credentials (cookies). Comma-separated env CORS_ALLOWED_ORIGINS.
@@ -70,6 +75,7 @@ func Load() *Config {
 		AppEnv:             env("APP_ENV", "production"),
 		AppURL:             env("APP_URL", "http://localhost"),
 		Port:               env("PORT", "8000"),
+		AppTimezone:        env("APP_TIMEZONE", "Asia/Riyadh"),
 		CORSAllowedOrigins: envList("CORS_ALLOWED_ORIGINS", nil),
 		DB: DBConfig{
 			Host:     env("DB_HOST", "127.0.0.1"),
@@ -109,6 +115,18 @@ func (c DBConfig) DSN() string {
 }
 
 func (c *Config) IsLocal() bool { return c.AppEnv == "local" }
+
+// ApplyTimezone parses AppTimezone and assigns it to time.Local so all
+// time.Now()/Format calls and the GORM loc=Local DSN use the same zone as the
+// Laravel app. Returns an error for an unknown zone name.
+func (c *Config) ApplyTimezone() error {
+	loc, err := time.LoadLocation(c.AppTimezone)
+	if err != nil {
+		return fmt.Errorf("invalid APP_TIMEZONE %q: %w", c.AppTimezone, err)
+	}
+	time.Local = loc
+	return nil
+}
 
 func env(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok && v != "" {
