@@ -52,6 +52,8 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 
 		authed.GET("/luggage-tag/*code", h.LuggageTag)
 
+		authed.GET("/overview", h.Overview)
+
 		authed.GET("/schedules", h.Schedule)
 
 		authed.GET("/tasks", h.TaskIndex)
