@@ -192,9 +192,10 @@ func (h *Handler) TaskCheckItem(c *gin.Context) {
 
 	now := time.Now()
 	h.DB.Model(item).Updates(map[string]interface{}{
-		"photo":   photoPath,
-		"done":    true,
-		"done_at": &now,
+		"photo":              photoPath,
+		"done":               true,
+		"done_at":            &now,
+		"checked_by_user_id": p.User.ID,
 	})
 
 	h.respondWithTask(c, task)
@@ -214,9 +215,10 @@ func (h *Handler) TaskUncheckItem(c *gin.Context) {
 	}
 
 	h.DB.Model(item).Updates(map[string]interface{}{
-		"photo":   nil,
-		"done":    false,
-		"done_at": nil,
+		"photo":              nil,
+		"done":               false,
+		"done_at":            nil,
+		"checked_by_user_id": nil,
 	})
 
 	h.respondWithTask(c, task)
