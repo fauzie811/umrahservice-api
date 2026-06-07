@@ -15,6 +15,8 @@ type GroupTaskChecklistItem struct {
 	Sort            int        `gorm:"column:sort"`
 	CreatedAt       time.Time  `gorm:"column:created_at"`
 	UpdatedAt       time.Time  `gorm:"column:updated_at"`
+
+	CheckedByUser *User `gorm:"foreignKey:CheckedByUserID"`
 }
 
 func (GroupTaskChecklistItem) TableName() string { return "group_task_checklist_items" }
