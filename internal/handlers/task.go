@@ -51,7 +51,7 @@ func (h *Handler) TaskIndex(c *gin.Context) {
 		}
 	}
 
-	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort)
+	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	} else {
@@ -78,7 +78,7 @@ func (h *Handler) TaskShow(c *gin.Context) {
 
 	var task models.GroupTask
 	err := h.visibleTasksQuery(p).
-		Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).
+		Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").
 		Where("id = ?", taskID).First(&task).Error
 	if err != nil {
 		forbidden(c)
@@ -144,7 +144,7 @@ func (h *Handler) TaskComplete(c *gin.Context) {
 	}
 	h.DB.Model(&models.GroupTask{}).Where("id = ?", task.ID).Updates(updates)
 
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).First(&task, task.ID)
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Task completed successfully",
 		"data":    h.transformTask(&task),
@@ -251,7 +251,7 @@ func (h *Handler) authorizeChecklistItem(c *gin.Context, p *auth.Principal) (*mo
 }
 
 func (h *Handler) respondWithTask(c *gin.Context, task *models.GroupTask) {
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).First(task, task.ID)
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(task, task.ID)
 	c.JSON(http.StatusOK, gin.H{"data": h.transformTask(task)})
 }
 
@@ -333,6 +333,13 @@ func (h *Handler) transformChecklist(items []models.GroupTaskChecklistItem) []gi
 			url := h.Storage.URL(*item.Photo)
 			photoURL = &url
 		}
+		var checkedBy interface{}
+		if item.CheckedByUser != nil {
+			checkedBy = gin.H{
+				"id":   item.CheckedByUser.ID,
+				"name": item.CheckedByUser.Name,
+			}
+		}
 		out = append(out, gin.H{
 			"id":             item.ID,
 			"label":          item.Label,
@@ -340,6 +347,7 @@ func (h *Handler) transformChecklist(items []models.GroupTaskChecklistItem) []gi
 			"photo_required": item.PhotoRequired,
 			"photo_url":      photoURL,
 			"done_at":        support.ISO8601(item.DoneAt),
+			"checked_by":     checkedBy,
 		})
 	}
 	return out
