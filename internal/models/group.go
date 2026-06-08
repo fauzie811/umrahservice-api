@@ -167,6 +167,18 @@ type GroupData struct {
 
 func (GroupData) TableName() string { return "group_data" }
 
+// GroupFile maps `group_files` (one row per file per group).
+type GroupFile struct {
+	ID        uint64    `gorm:"primaryKey"`
+	GroupID   uint64    `gorm:"column:group_id"`
+	Name      string    `gorm:"column:name"`
+	File      string    `gorm:"column:file"`
+	CreatedAt time.Time `gorm:"column:created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at"`
+}
+
+func (GroupFile) TableName() string { return "group_files" }
+
 // GroupFlight maps `group_flights`.
 type GroupFlight struct {
 	ID        uint64         `gorm:"primaryKey"`
