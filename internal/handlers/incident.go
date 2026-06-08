@@ -3,8 +3,10 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"umrahservice-api/internal/auth"
 	"umrahservice-api/internal/enums"
@@ -160,7 +162,17 @@ func (h *Handler) IncidentShow(c *gin.Context) {
 		abort403(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": h.transformIncident(inc)})
+	h.DB.
+		Preload("Group.Customer").Preload("ReportedBy").Preload("AssignedTo").Preload("GroupTask").
+		Preload("ProgressEntries", orderProgressEntries).
+		Preload("ProgressEntries.User").
+		First(inc, inc.ID)
+	c.JSON(http.StatusOK, gin.H{"data": h.transformIncidentWithProgress(inc)})
+}
+
+// orderProgressEntries mirrors the latest('created_at')->latest('id') scope.
+func orderProgressEntries(db *gorm.DB) *gorm.DB {
+	return db.Order("created_at DESC").Order("id DESC")
 }
 
 // IncidentUpdate mirrors IncidentController::update.
@@ -231,16 +243,38 @@ func (h *Handler) IncidentUpdate(c *gin.Context) {
 		validationError(c, errs)
 		return
 	}
+	oldStatus := inc.Status
 	if len(updates) > 0 {
 		h.DB.Model(&models.Incident{}).Where("id = ?", inc.ID).Updates(updates)
 	}
 	h.DB.First(inc, inc.ID)
+	// Mirror Laravel Incident::booted updated hook — log status transitions.
+	if newStatus, ok := updates["status"].(string); ok {
+		if oldStatus == nil || *oldStatus != newStatus {
+			h.recordIncidentStatusChange(inc.ID, oldStatus, newStatus, &p.User.ID, nil)
+		}
+	}
 	h.loadIncident(inc)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Incident updated successfully",
 		"data":    h.transformIncident(inc),
 	})
+}
+
+// recordIncidentStatusChange inserts a progress entry for a status transition.
+// Mirrors Incident::booted's static::updated hook.
+func (h *Handler) recordIncidentStatusChange(incidentID uint64, from *string, to string, userID *uint64, note *string) *models.IncidentProgressEntry {
+	entry := models.IncidentProgressEntry{
+		IncidentID: incidentID,
+		FromStatus: from,
+		ToStatus:   &to,
+		UserID:     userID,
+		Note:       note,
+		CreatedAt:  time.Now(),
+	}
+	h.DB.Create(&entry)
+	return &entry
 }
 
 // IncidentDestroy mirrors IncidentController::destroy.
@@ -320,5 +354,43 @@ func (h *Handler) transformIncident(inc *models.Incident) gin.H {
 		"reported_by":      reportedBy,
 		"assigned_to":      assignedTo,
 		"created_at":       support.ISO8601(&created),
+	}
+}
+
+func (h *Handler) transformIncidentWithProgress(inc *models.Incident) gin.H {
+	out := h.transformIncident(inc)
+	entries := make([]gin.H, 0, len(inc.ProgressEntries))
+	for i := range inc.ProgressEntries {
+		entries = append(entries, transformProgressEntry(&inc.ProgressEntries[i]))
+	}
+	out["progress_entries"] = entries
+	return out
+}
+
+func transformProgressEntry(e *models.IncidentProgressEntry) gin.H {
+	var fromVal, fromLabel, toVal, toLabel interface{}
+	if e.FromStatus != nil {
+		fromVal = *e.FromStatus
+		fromLabel = enums.IncidentStatusLabel(*e.FromStatus)
+	}
+	if e.ToStatus != nil {
+		toVal = *e.ToStatus
+		toLabel = enums.IncidentStatusLabel(*e.ToStatus)
+	}
+	var user gin.H
+	if e.User != nil {
+		user = gin.H{"id": e.User.ID, "name": e.User.Name}
+	}
+	created := e.CreatedAt
+	return gin.H{
+		"id":                e.ID,
+		"incident_id":       e.IncidentID,
+		"from_status":       fromVal,
+		"from_status_label": fromLabel,
+		"to_status":         toVal,
+		"to_status_label":   toLabel,
+		"note":              e.Note,
+		"user":              user,
+		"created_at":        support.ISO8601(&created),
 	}
 }
