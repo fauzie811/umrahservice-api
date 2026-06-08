@@ -41,6 +41,7 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 
 		authed.GET("/groups", h.GroupIndex)
 		authed.GET("/groups/:id", h.GroupShow)
+		authed.GET("/groups/:id/files", h.GroupFiles)
 		authed.POST("/groups/:id/files", h.GroupStoreFile)
 		authed.POST("/groups/:id/files/:fileId", h.GroupUpdateFile)
 		authed.DELETE("/groups/:id/files/:fileId", h.GroupDeleteFile)
