@@ -109,7 +109,6 @@ func (h *Handler) GroupShow(c *gin.Context) {
 		return
 	}
 
-	files := h.buildGroupFiles(group.ID)
 	pdfName, pdfData := h.pifData(&group)
 
 	mutawifNames := []string{}
@@ -127,10 +126,21 @@ func (h *Handler) GroupShow(c *gin.Context) {
 		"arrival_date":  formatDateOnly(group.ArrivalDate),
 		"progress":      group.Progress,
 		"mutawifs":      mutawifNames,
-		"files":         files,
 		"pdf_name":      pdfName,
 		"pdf_data":      pdfData,
 	}})
+}
+
+// GroupFiles mirrors Api\GroupController::files. Split out from GroupShow so
+// clients can lazy-load the file list.
+func (h *Handler) GroupFiles(c *gin.Context) {
+	groupID := parseUintPtr(c.Param("id"))
+	if groupID == nil {
+		notFound(c, "")
+		return
+	}
+	files := h.buildGroupFiles(*groupID)
+	c.JSON(http.StatusOK, gin.H{"data": files})
 }
 
 // groupFile is one item in the group files list.
