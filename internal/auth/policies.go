@@ -98,6 +98,29 @@ func (p *Principal) CanDeleteIncident() bool {
 	return p.IsSuperAdmin() || p.HasRole(enums.RoleAdmin)
 }
 
+// CanCreateIncidentProgress mirrors IncidentProgressEntryPolicy::createForIncident.
+// Admin, reporter, or assignee — provided the actor can view the incident.
+func CanCreateIncidentProgress(db *gorm.DB, p *Principal, inc *models.Incident) bool {
+	if !CanViewIncident(db, p, inc) {
+		return false
+	}
+	if p.IsSuperAdmin() || p.HasRole(enums.RoleAdmin) {
+		return true
+	}
+	if inc.ReportedByID != nil && *inc.ReportedByID == p.User.ID {
+		return true
+	}
+	if inc.AssignedToID != nil && *inc.AssignedToID == p.User.ID {
+		return true
+	}
+	return false
+}
+
+// CanDeleteIncidentProgress mirrors IncidentProgressEntryPolicy::delete (admin only).
+func (p *Principal) CanDeleteIncidentProgress() bool {
+	return p.IsSuperAdmin() || p.HasRole(enums.RoleAdmin)
+}
+
 // --- GroupTask ---
 
 func CanViewGroupTask(p *Principal, task *models.GroupTask) bool {

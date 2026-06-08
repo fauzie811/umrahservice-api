@@ -71,6 +71,9 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 		authed.DELETE("/incidents/:incident", h.IncidentDestroy)
 		authed.GET("/incidents/:incident/messages", h.IncidentMessages)
 		authed.POST("/incidents/:incident/messages", h.IncidentMessageStore)
+		authed.GET("/incidents/:incident/progress", h.IncidentProgressIndex)
+		authed.POST("/incidents/:incident/progress", h.IncidentProgressStore)
+		authed.DELETE("/incidents/:incident/progress/:entry", h.IncidentProgressDestroy)
 
 		authed.PATCH("/messages/:message", h.MessageUpdate)
 		authed.DELETE("/messages/:message", h.MessageDestroy)
