@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"umrahservice-api/internal/auth"
@@ -134,55 +133,26 @@ func (h *Handler) GroupShow(c *gin.Context) {
 	}})
 }
 
-// fileEntry is one item in the group files list.
+// groupFile is one item in the group files list.
 type groupFile struct {
-	ID   int    `json:"id"`
+	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 	URL  string `json:"url"`
 }
 
 func (h *Handler) buildGroupFiles(groupID uint64) []groupFile {
-	var data models.GroupData
-	if err := h.DB.Where("group_id = ?", groupID).First(&data).Error; err != nil {
-		return []groupFile{}
-	}
+	var rows []models.GroupFile
+	h.DB.Where("group_id = ?", groupID).Find(&rows)
 
-	files := []groupFile{}
-	add := func(id int, name string, url *string) {
-		if url != nil && *url != "" {
-			files = append(files, groupFile{ID: id, Name: name, URL: *url})
-		}
-	}
-	add(1, "Visa", data.Visa)
-	add(2, "Ticket", data.Ticket)
-	add(3, "Roomlist", data.Roomlist)
-	add(4, "Manifest", data.Manifest)
-
-	var dynamic []struct {
-		Name string `json:"name"`
-		File string `json:"file"`
-	}
-	decodeJSON(data.Files, &dynamic)
-	idx := 0
-	for _, f := range dynamic {
-		if f.File == "" {
-			continue
-		}
+	files := make([]groupFile, 0, len(rows))
+	for _, f := range rows {
 		files = append(files, groupFile{
-			ID:   10 + idx,
+			ID:   f.ID,
 			Name: f.Name,
 			URL:  h.Storage.URL(f.File),
 		})
-		idx++
 	}
-
 	return files
-}
-
-// dynamicFile is a stored {name, file} entry in group_data.files.
-type dynamicFile struct {
-	Name string `json:"name"`
-	File string `json:"file"`
 }
 
 // GroupStoreFile mirrors Api\GroupController::storeFile.
@@ -212,9 +182,6 @@ func (h *Handler) GroupStoreFile(c *gin.Context) {
 		return
 	}
 
-	var data models.GroupData
-	h.DB.Where("group_id = ?", *groupID).FirstOrCreate(&data, models.GroupData{GroupID: *groupID})
-
 	content, contentType, ext, err := readUpload(fh)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Could not read upload."})
@@ -226,10 +193,8 @@ func (h *Handler) GroupStoreFile(c *gin.Context) {
 		return
 	}
 
-	files := h.filteredDynamicFiles(data.Files)
-	files = append(files, dynamicFile{Name: name, File: key})
-	data.Files = jsonArray(files)
-	h.DB.Save(&data)
+	row := models.GroupFile{GroupID: *groupID, Name: name, File: key}
+	h.DB.Create(&row)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "File uploaded successfully"})
 }
@@ -248,57 +213,28 @@ func (h *Handler) GroupUpdateFile(c *gin.Context) {
 		return
 	}
 
-	var data models.GroupData
-	if err := h.DB.Where("group_id = ?", *groupID).First(&data).Error; err != nil {
+	var row models.GroupFile
+	if err := h.DB.Where("group_id = ? AND id = ?", *groupID, fileID).First(&row).Error; err != nil {
 		notFound(c, "")
 		return
 	}
 
-	fh, _ := c.FormFile("file")
-	name := c.PostForm("name")
-
-	if col, ok := fixedFileColumn(fileID); ok {
-		if fh != nil {
-			if old := fixedFileValue(&data, col); old != nil && *old != "" {
-				_ = h.Storage.Delete(c.Request.Context(), *old)
-			}
-			content, contentType, ext, err := readUpload(fh)
-			if err == nil {
-				key, err := h.Storage.Store(c.Request.Context(), "group_data", ext, contentType, content)
-				if err == nil {
-					setFixedFile(&data, col, &key)
-				}
-			}
-		}
-		h.DB.Save(&data)
-		c.JSON(http.StatusOK, gin.H{"message": "File updated successfully"})
-		return
+	if name := c.PostForm("name"); name != "" {
+		row.Name = name
 	}
 
-	if fileID >= 10 {
-		index := fileID - 10
-		files := h.filteredDynamicFiles(data.Files)
-		if index >= 0 && index < len(files) {
-			if name != "" {
-				files[index].Name = name
+	if fh, ferr := c.FormFile("file"); ferr == nil && fh != nil {
+		_ = h.Storage.Delete(c.Request.Context(), row.File)
+		content, contentType, ext, err := readUpload(fh)
+		if err == nil {
+			if key, err := h.Storage.Store(c.Request.Context(), "group_data", ext, contentType, content); err == nil {
+				row.File = key
 			}
-			if fh != nil {
-				_ = h.Storage.Delete(c.Request.Context(), files[index].File)
-				content, contentType, ext, err := readUpload(fh)
-				if err == nil {
-					if key, err := h.Storage.Store(c.Request.Context(), "group_data", ext, contentType, content); err == nil {
-						files[index].File = key
-					}
-				}
-			}
-			data.Files = jsonArray(files)
-			h.DB.Save(&data)
-			c.JSON(http.StatusOK, gin.H{"message": "File updated successfully"})
-			return
 		}
 	}
 
-	notFound(c, "File not found")
+	h.DB.Save(&row)
+	c.JSON(http.StatusOK, gin.H{"message": "File updated successfully"})
 }
 
 // GroupDeleteFile mirrors Api\GroupController::deleteFile.
@@ -315,89 +251,14 @@ func (h *Handler) GroupDeleteFile(c *gin.Context) {
 		return
 	}
 
-	var data models.GroupData
-	if err := h.DB.Where("group_id = ?", *groupID).First(&data).Error; err != nil {
+	var row models.GroupFile
+	if err := h.DB.Where("group_id = ? AND id = ?", *groupID, fileID).First(&row).Error; err != nil {
 		notFound(c, "")
 		return
 	}
 
-	if col, ok := fixedFileColumn(fileID); ok {
-		if old := fixedFileValue(&data, col); old != nil && *old != "" {
-			_ = h.Storage.Delete(c.Request.Context(), *old)
-			setFixedFile(&data, col, nil)
-			h.DB.Save(&data)
-		}
-		c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
-		return
-	}
+	_ = h.Storage.Delete(c.Request.Context(), row.File)
+	h.DB.Delete(&models.GroupFile{}, row.ID)
 
-	if fileID >= 10 {
-		index := fileID - 10
-		files := h.filteredDynamicFiles(data.Files)
-		if index >= 0 && index < len(files) {
-			if files[index].File != "" {
-				_ = h.Storage.Delete(c.Request.Context(), files[index].File)
-			}
-			files = append(files[:index], files[index+1:]...)
-			data.Files = jsonArray(files)
-			h.DB.Save(&data)
-			c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
-			return
-		}
-	}
-
-	notFound(c, "File not found")
-}
-
-func (h *Handler) filteredDynamicFiles(raw datatypes.JSON) []dynamicFile {
-	var files []dynamicFile
-	decodeJSON(raw, &files)
-	out := make([]dynamicFile, 0, len(files))
-	for _, f := range files {
-		if f.File != "" {
-			out = append(out, f)
-		}
-	}
-	return out
-}
-
-func fixedFileColumn(fileID int) (string, bool) {
-	switch fileID {
-	case 1:
-		return "visa", true
-	case 2:
-		return "ticket", true
-	case 3:
-		return "roomlist", true
-	case 4:
-		return "manifest", true
-	}
-	return "", false
-}
-
-func fixedFileValue(d *models.GroupData, col string) *string {
-	switch col {
-	case "visa":
-		return d.Visa
-	case "ticket":
-		return d.Ticket
-	case "roomlist":
-		return d.Roomlist
-	case "manifest":
-		return d.Manifest
-	}
-	return nil
-}
-
-func setFixedFile(d *models.GroupData, col string, v *string) {
-	switch col {
-	case "visa":
-		d.Visa = v
-	case "ticket":
-		d.Ticket = v
-	case "roomlist":
-		d.Roomlist = v
-	case "manifest":
-		d.Manifest = v
-	}
+	c.JSON(http.StatusOK, gin.H{"message": "File deleted successfully"})
 }
