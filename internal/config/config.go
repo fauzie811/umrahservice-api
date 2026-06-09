@@ -35,6 +35,11 @@ type Config struct {
 	LaravelURL     string
 	InternalSecret string
 
+	// LaravelStoragePath is the filesystem path to the Laravel app's
+	// storage/app/public directory. When set (shared storage volume), file URL
+	// resolution checks local disk before falling back to S3.
+	LaravelStoragePath string
+
 	Reverb ReverbConfig
 }
 
@@ -93,8 +98,9 @@ func Load() *Config {
 			Endpoint:        env("AWS_ENDPOINT", ""),
 			UsePathStyle:    envBool("AWS_USE_PATH_STYLE_ENDPOINT", false),
 		},
-		LaravelURL:     env("LARAVEL_URL", "http://localhost"),
-		InternalSecret: env("INTERNAL_API_SECRET", ""),
+		LaravelURL:         env("LARAVEL_URL", "http://localhost"),
+		InternalSecret:     env("INTERNAL_API_SECRET", ""),
+		LaravelStoragePath: env("LARAVEL_STORAGE_PATH", ""),
 		Reverb: ReverbConfig{
 			AppID:  env("REVERB_APP_ID", ""),
 			Key:    env("REVERB_APP_KEY", ""),
