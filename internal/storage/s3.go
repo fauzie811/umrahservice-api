@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path"
 	"strings"
 
@@ -20,9 +21,11 @@ import (
 // Storage wraps the S3 client and mirrors Laravel's Storage::disk('s3')
 // helpers used by the API (store + url).
 type Storage struct {
-	client *s3.Client
-	bucket string
-	url    string
+	client    *s3.Client
+	bucket    string
+	url       string
+	localPath string // Laravel storage/app/public root (shared volume)
+	publicURL string // APP_URL/storage — public disk base URL
 }
 
 // New builds an S3-backed Storage from config (path-style endpoint supported).
@@ -45,9 +48,11 @@ func New(cfg *config.Config) (*Storage, error) {
 	})
 
 	return &Storage{
-		client: client,
-		bucket: cfg.AWS.Bucket,
-		url:    cfg.AWS.URL,
+		client:    client,
+		bucket:    cfg.AWS.Bucket,
+		url:       cfg.AWS.URL,
+		localPath: strings.TrimRight(cfg.LaravelStoragePath, "/"),
+		publicURL: strings.TrimRight(cfg.AppURL, "/") + "/storage",
 	}, nil
 }
 
@@ -85,6 +90,23 @@ func (s *Storage) URL(key string) string {
 		return ""
 	}
 	return strings.TrimRight(s.url, "/") + "/" + strings.TrimLeft(key, "/")
+}
+
+// FileURL mirrors the Laravel GroupController::files URL resolution: check the
+// local public disk (shared storage volume) first, fall back to S3.
+//
+//	Storage::disk('public')->exists($f->file) ? public URL : s3 URL
+func (s *Storage) FileURL(key string) string {
+	if key == "" {
+		return ""
+	}
+	if s.localPath != "" {
+		localFile := s.localPath + "/" + strings.TrimLeft(key, "/")
+		if _, err := os.Stat(localFile); err == nil {
+			return s.publicURL + "/" + strings.TrimLeft(key, "/")
+		}
+	}
+	return s.URL(key)
 }
 
 // hashName mirrors Laravel's File::hashName (40 random chars + extension).

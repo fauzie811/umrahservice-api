@@ -159,7 +159,7 @@ func (h *Handler) buildGroupFiles(groupID uint64) []groupFile {
 		files = append(files, groupFile{
 			ID:   f.ID,
 			Name: f.Name,
-			URL:  h.Storage.URL(f.File),
+			URL:  h.Storage.FileURL(f.File),
 		})
 	}
 	return files
