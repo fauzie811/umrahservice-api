@@ -7,6 +7,7 @@ type GroupTaskChecklistItem struct {
 	ID              uint64     `gorm:"primaryKey"`
 	GroupTaskID     uint64     `gorm:"column:group_task_id"`
 	Label           string     `gorm:"column:label"`
+	Description     *string    `gorm:"column:description"`
 	Done            bool       `gorm:"column:done"`
 	CheckedByUserID *uint64    `gorm:"column:checked_by_user_id"`
 	PhotoRequired   bool       `gorm:"column:photo_required"`

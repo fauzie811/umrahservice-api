@@ -353,6 +353,7 @@ func (h *Handler) transformChecklist(items []models.GroupTaskChecklistItem) []gi
 		out = append(out, gin.H{
 			"id":             item.ID,
 			"label":          item.Label,
+			"description":    item.Description,
 			"done":           item.Done,
 			"photo_required": item.PhotoRequired,
 			"photo_url":      photoURL,
