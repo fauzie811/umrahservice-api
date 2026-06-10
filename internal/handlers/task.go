@@ -51,7 +51,7 @@ func (h *Handler) TaskIndex(c *gin.Context) {
 		}
 	}
 
-	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser")
+	q := h.visibleTasksQuery(p).Preload("Group.Customer").Preload("AssignedUser").Preload("CompletedBy").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	} else {
@@ -78,7 +78,7 @@ func (h *Handler) TaskShow(c *gin.Context) {
 
 	var task models.GroupTask
 	err := h.visibleTasksQuery(p).
-		Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").
+		Preload("Group.Customer").Preload("AssignedUser").Preload("CompletedBy").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").
 		Where("id = ?", taskID).First(&task).Error
 	if err != nil {
 		forbidden(c)
@@ -139,12 +139,13 @@ func (h *Handler) TaskComplete(c *gin.Context) {
 	updates := map[string]interface{}{
 		"status":           enums.GroupTaskCompleted,
 		"completed_at":     completedAt,
+		"completed_by_id":  p.User.ID,
 		"completion_photo": completionPhoto,
 		"completion_note":  note,
 	}
 	h.DB.Model(&models.GroupTask{}).Where("id = ?", task.ID).Updates(updates)
 
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(&task, task.ID)
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("CompletedBy").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Task completed successfully",
 		"data":    h.transformTask(&task),
@@ -251,7 +252,7 @@ func (h *Handler) authorizeChecklistItem(c *gin.Context, p *auth.Principal) (*mo
 }
 
 func (h *Handler) respondWithTask(c *gin.Context, task *models.GroupTask) {
-	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(task, task.ID)
+	h.DB.Preload("Group.Customer").Preload("AssignedUser").Preload("CompletedBy").Preload("ChecklistItems", orderBySort).Preload("ChecklistItems.CheckedByUser").First(task, task.ID)
 	c.JSON(http.StatusOK, gin.H{"data": h.transformTask(task)})
 }
 
@@ -299,6 +300,14 @@ func (h *Handler) transformTask(task *models.GroupTask) gin.H {
 		photoURL = &url
 	}
 
+	var completedBy interface{}
+	if task.CompletedBy != nil {
+		completedBy = gin.H{
+			"id":   task.CompletedBy.ID,
+			"name": task.CompletedBy.Name,
+		}
+	}
+
 	return gin.H{
 		"id":                   task.ID,
 		"group_id":             task.GroupID,
@@ -314,6 +323,7 @@ func (h *Handler) transformTask(task *models.GroupTask) gin.H {
 		"status_label":         statusLabel,
 		"scheduled_at":         support.ISO8601(task.ScheduledAt),
 		"completed_at":         support.ISO8601(task.CompletedAt),
+		"completed_by":         completedBy,
 		"completion_photo_url": photoURL,
 		"checklist":            h.transformChecklist(task.ChecklistItems),
 		"completion_note":      task.CompletionNote,
