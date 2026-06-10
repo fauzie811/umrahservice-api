@@ -52,7 +52,7 @@ func New(cfg *config.Config) (*Storage, error) {
 		bucket:    cfg.AWS.Bucket,
 		url:       cfg.AWS.URL,
 		localPath: strings.TrimRight(cfg.LaravelStoragePath, "/"),
-		publicURL: strings.TrimRight(cfg.AppURL, "/") + "/storage",
+		publicURL: strings.TrimRight(cfg.LaravelURL, "/") + "/storage",
 	}, nil
 }
 
