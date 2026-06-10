@@ -125,18 +125,25 @@ func (h *Handler) IncidentStore(c *gin.Context) {
 		return
 	}
 
+	reportedByID := p.User.ID
+	status := "open"
 	inc := models.Incident{
-		GroupID:     req.GroupID,
-		GroupTaskID: req.GroupTaskID,
-		Title:       req.Title,
-		Category:    &req.Category,
-		Severity:    &req.Severity,
+		GroupID:      req.GroupID,
+		GroupTaskID:  req.GroupTaskID,
+		Title:        req.Title,
+		Category:     &req.Category,
+		Severity:     &req.Severity,
+		Status:       &status,
+		ReportedByID: &reportedByID,
 	}
 	if req.Description != "" {
 		inc.Description = &req.Description
 	}
 	if t := parseDate(req.OccurredAt); t != nil {
 		inc.OccurredAt = t
+	} else {
+		now := time.Now()
+		inc.OccurredAt = &now
 	}
 
 	if err := h.DB.Create(&inc).Error; err != nil {
