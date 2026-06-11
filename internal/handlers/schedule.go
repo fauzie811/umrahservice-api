@@ -144,7 +144,7 @@ func (h *Handler) hotelItems(p *auth.Principal, from, to string, checkIn bool) [
 	q := h.DB.Model(&models.GroupHotel{}).Preload("Group.Customer").Preload("Hotel").
 		Where("EXISTS (SELECT 1 FROM groups g WHERE g.id = group_hotel.group_id AND g.status = 'confirmed')")
 
-	if p.HasExactRoles(enums.RoleCheckInOutTeam) {
+	if p.HasExactRoles(enums.RoleRunner) {
 		q = q.Where(`EXISTS (
 			SELECT 1 FROM groups g
 			JOIN group_service gs ON gs.group_id = g.id

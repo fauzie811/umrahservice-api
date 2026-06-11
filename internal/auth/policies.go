@@ -15,7 +15,7 @@ var staffRoles = []string{
 	enums.RoleFinance,
 	enums.RoleAirportHandler,
 	enums.RoleMutawif,
-	enums.RoleCheckInOutTeam,
+	enums.RoleRunner,
 	enums.RoleSnackHandler,
 	enums.RoleReservation,
 }

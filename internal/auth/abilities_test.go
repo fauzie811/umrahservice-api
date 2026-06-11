@@ -39,7 +39,7 @@ func TestHasRoleAndCan(t *testing.T) {
 }
 
 func TestIsInternalStaff(t *testing.T) {
-	staff := &Principal{User: &models.User{ID: 5}, Roles: []string{enums.RoleCheckInOutTeam}}
+	staff := &Principal{User: &models.User{ID: 5}, Roles: []string{enums.RoleRunner}}
 	if !staff.IsInternalStaff() {
 		t.Fatal("CheckInOutTeam is internal staff")
 	}

@@ -113,7 +113,7 @@ func (h *Handler) Categories(c *gin.Context) {
 	if p.HasExactRoles(enums.RoleMutawif) {
 		q = q.Where("`group` = ?", enums.ExpenseGroupMutawif)
 	}
-	if p.HasExactRoles(enums.RoleCheckInOutTeam) {
+	if p.HasExactRoles(enums.RoleRunner) {
 		q = q.Where("`group` = ?", enums.ExpenseGroupHotelCheckInOut)
 	}
 
