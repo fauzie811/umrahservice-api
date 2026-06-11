@@ -36,6 +36,7 @@ type Group struct {
 	Mutawif2  *User     `gorm:"foreignKey:Mutawif2ID"`
 	Mutawif3  *User     `gorm:"foreignKey:Mutawif3ID"`
 	Muassasah *Vendor   `gorm:"foreignKey:MuassasahID"`
+	Services  []Service `gorm:"many2many:group_service;foreignKey:ID;joinForeignKey:group_id;References:ID;joinReferences:service_id"`
 }
 
 func (Group) TableName() string { return "groups" }

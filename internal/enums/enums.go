@@ -58,6 +58,14 @@ const (
 	ServiceAdditional      = "additional"
 )
 
+var serviceTypeLabels = map[string]string{
+	ServiceHandling:        "Handling",
+	ServiceVisa:            "Visa",
+	ServiceHotel:           "Hotel",
+	ServiceAirportHandling: "Airport Handling",
+	ServiceAdditional:      "Additional",
+}
+
 var groupTaskStatusLabels = map[string]string{
 	GroupTaskOpen:      "Open",
 	GroupTaskCompleted: "Completed",
@@ -151,6 +159,7 @@ func label(m map[string]string, v string) string {
 }
 
 func GroupTaskStatusLabel(v string) string  { return label(groupTaskStatusLabels, v) }
+func ServiceTypeLabel(v string) string      { return label(serviceTypeLabels, v) }
 func GroupTaskEventLabel(v string) string   { return label(groupTaskEventLabels, v) }
 func GroupTaskTeamLabel(v string) string    { return label(groupTaskTeamLabels, v) }
 func IncidentCategoryLabel(v string) string { return label(incidentCategoryLabels, v) }
