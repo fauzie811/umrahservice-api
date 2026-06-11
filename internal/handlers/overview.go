@@ -40,7 +40,7 @@ func (h *Handler) Overview(c *gin.Context) {
 	bySeverity := map[string]int64{}
 	var sevRows []aggregate
 	h.DB.Model(&models.Incident{}).
-		Select("severity AS key, count(*) AS aggregate").
+		Select("severity AS `key`, count(*) AS aggregate").
 		Where("status IN ?", activeIncidentStatuses).
 		Group("severity").
 		Scan(&sevRows)
@@ -51,7 +51,7 @@ func (h *Handler) Overview(c *gin.Context) {
 	byStatus := map[string]int64{}
 	var statusRows []aggregate
 	h.DB.Model(&models.Incident{}).
-		Select("status AS key, count(*) AS aggregate").
+		Select("status AS `key`, count(*) AS aggregate").
 		Where("status IN ?", activeIncidentStatuses).
 		Group("status").
 		Scan(&statusRows)
