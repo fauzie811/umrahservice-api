@@ -123,21 +123,40 @@ func (p *Principal) CanDeleteIncidentProgress() bool {
 
 // --- GroupTask ---
 
-func CanViewGroupTask(p *Principal, task *models.GroupTask) bool {
+func CanViewGroupTask(db *gorm.DB, p *Principal, task *models.GroupTask) bool {
 	if p.IsSuperAdmin() || p.IsAdminOrOperator() {
 		return true
 	}
 	if !p.Can("group-tasks.view") {
 		return false
 	}
-	return p.isAssignedTo(task)
+	return p.isAssignedTo(db, task)
 }
 
-func (p *Principal) isAssignedTo(task *models.GroupTask) bool {
+func (p *Principal) isAssignedTo(db *gorm.DB, task *models.GroupTask) bool {
 	if task.AssignedUserID != nil && *task.AssignedUserID == p.User.ID {
 		return true
 	}
-	return task.AssignedRole != nil && *task.AssignedRole != "" && p.HasRole(*task.AssignedRole)
+	if task.AssignedRole == nil || *task.AssignedRole == "" {
+		return false
+	}
+	if !p.HasRole(*task.AssignedRole) {
+		return false
+	}
+	// Unassigned Mutawif-role tasks are only visible to mutawifs of the task's group.
+	if *task.AssignedRole == enums.RoleMutawif {
+		if task.AssignedUserID != nil || task.GroupID == nil {
+			return false
+		}
+		uid := p.User.ID
+		var count int64
+		db.Model(&models.Group{}).
+			Where("id = ?", *task.GroupID).
+			Where("mutawif_id = ? OR mutawif_2_id = ? OR mutawif_3_id = ?", uid, uid, uid).
+			Count(&count)
+		return count > 0
+	}
+	return true
 }
 
 // --- Message ---
@@ -153,7 +172,7 @@ func CanViewMessageable(db *gorm.DB, p *Principal, morphType string, id uint64) 
 		if err := db.First(&task, id).Error; err != nil {
 			return false
 		}
-		return CanViewGroupTask(p, &task)
+		return CanViewGroupTask(db, p, &task)
 	case models.MorphIncident:
 		var inc models.Incident
 		if err := db.Preload("Group").First(&inc, id).Error; err != nil {
