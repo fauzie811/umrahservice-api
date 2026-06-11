@@ -236,12 +236,12 @@ type GroupHotel struct {
 
 func (GroupHotel) TableName() string { return "group_hotel" }
 
-// DateRange mirrors GroupHotel::dateRange ("Y-m-d – Y-m-d"), empty when missing.
+// DateRange mirrors GroupHotel::dateRange ("d/m/Y – d/m/Y"), empty when missing.
 func (gh *GroupHotel) DateRange() string {
 	if gh.CheckIn == nil || gh.CheckOut == nil {
 		return ""
 	}
-	return gh.CheckIn.Format("2006-01-02") + " – " + gh.CheckOut.Format("2006-01-02")
+	return gh.CheckIn.Format("02/01/2006") + " – " + gh.CheckOut.Format("02/01/2006")
 }
 
 // Hotel maps `hotels`. `fullname` is a stored column in the table.
