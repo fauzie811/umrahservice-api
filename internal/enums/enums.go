@@ -11,7 +11,7 @@ const (
 	RoleAirportHandler = "Airport Handler"
 	RoleMutawif        = "Mutawif"
 	RoleFinance        = "Finance"
-	RoleCheckInOutTeam = "Check-In/Out Team"
+	RoleRunner         = "Runner"
 	RoleSnackHandler   = "Snack Handler"
 	RoleCustomer       = "Customer"
 	RoleAccountant     = "Accountant"
@@ -83,7 +83,7 @@ var groupTaskEventLabels = map[string]string{
 
 var groupTaskTeamLabels = map[string]string{
 	"airport":          "Airport Team",
-	"check_in":         "Check-In/Out Team",
+	"check_in":         "Runner",
 	"transport":        "Transport",
 	"mutawif":          "Mutawif",
 	"media":            "Media",

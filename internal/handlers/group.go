@@ -13,9 +13,9 @@ import (
 )
 
 // applyGroupRoleScopes ports the role-based whereHas filters used by the group
-// queries. includeCheckIn toggles the CheckInOutTeam branch (index only).
+// queries. includeCheckIn toggles the Runner branch (index only).
 func applyGroupRoleScopes(q *gorm.DB, p *auth.Principal, includeCheckIn bool) *gorm.DB {
-	if includeCheckIn && p.HasExactRoles(enums.RoleCheckInOutTeam) {
+	if includeCheckIn && p.HasExactRoles(enums.RoleRunner) {
 		q = q.Where(`EXISTS (
 			SELECT 1 FROM group_service gs
 			JOIN services s ON s.id = gs.service_id
@@ -100,7 +100,7 @@ func (h *Handler) GroupShow(c *gin.Context) {
 		Preload("Mutawif2").
 		Preload("Mutawif3").
 		Scopes(models.CurrentPeriod(periodID, true), models.Confirmed)
-	// show does NOT apply the CheckInOutTeam branch.
+	// show does NOT apply the Runner branch.
 	q = applyGroupRoleScopes(q, p, false)
 
 	var group models.Group
