@@ -245,10 +245,15 @@ func (h *Handler) buildHotels(group *models.Group, rooms []models.Room) []gin.H 
 	}
 
 	var ghs []models.GroupHotel
-	h.DB.Preload("Hotel").
-		Where("group_id = ? AND id IN ?", group.ID, ids).
+	// Columns are qualified because the JOIN brings in hotels.id / hotels.group
+	// ambiguity; an unqualified `id IN ?` errors out and silently drops hotels.
+	if err := h.DB.Preload("Hotel").
+		Select("group_hotel.*").
+		Where("group_hotel.group_id = ? AND group_hotel.id IN ?", group.ID, ids).
 		Joins("JOIN hotels ON hotels.id = group_hotel.hotel_id AND hotels.city IN ('Makkah','Madinah')").
-		Find(&ghs)
+		Find(&ghs).Error; err != nil {
+		return []gin.H{}
+	}
 
 	// Sort by hotel city descending (Madinah before Makkah).
 	sort.SliceStable(ghs, func(i, j int) bool {
