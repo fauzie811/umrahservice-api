@@ -122,12 +122,14 @@ type Manasik struct {
 
 func (Manasik) TableName() string { return "manasiks" }
 
-// Itinerary maps `itineraries`.
+// Itinerary maps `itineraries`. The former `location` column was renamed to
+// `title` (it held the trip name); `location` is now a separate nullable place.
 type Itinerary struct {
 	ID          uint64     `gorm:"primaryKey"`
 	GroupID     uint64     `gorm:"column:group_id"`
 	Date        *time.Time `gorm:"column:date"`
 	City        *string    `gorm:"column:city"`
+	Title       *string    `gorm:"column:title"`
 	Location    *string    `gorm:"column:location"`
 	Description *string    `gorm:"column:description"`
 	EventType   *string    `gorm:"column:event_type"`

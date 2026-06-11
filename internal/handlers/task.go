@@ -15,23 +15,42 @@ import (
 	"umrahservice-api/internal/support"
 )
 
-// visibleTasksQuery mirrors TaskController::visibleTasksQuery.
+// visibleTasksQuery mirrors TaskController::visibleTasksQuery (GroupTask::scopeVisibleTo).
 func (h *Handler) visibleTasksQuery(p *auth.Principal) *gorm.DB {
 	q := h.DB.Model(&models.GroupTask{})
 	if p.IsAdminOrOperator() || p.IsSuperAdmin() {
 		return q
 	}
-	return q.Where(
-		h.DB.Where("assigned_user_id = ?", p.User.ID).
-			Or("assigned_role IN ?", nonEmpty(p.Roles)),
-	)
+
+	// Mutawif is scoped separately: unassigned Mutawif-role tasks are only
+	// visible to mutawifs of the task's group, not every Mutawif.
+	otherRoles := rolesExcept(p.Roles, enums.RoleMutawif)
+
+	cond := h.DB.Where("assigned_user_id = ?", p.User.ID)
+	if len(otherRoles) > 0 {
+		cond = cond.Or("assigned_role IN ?", otherRoles)
+	}
+	if p.HasRole(enums.RoleMutawif) {
+		uid := p.User.ID
+		cond = cond.Or(
+			h.DB.Where("assigned_role = ?", enums.RoleMutawif).
+				Where("assigned_user_id IS NULL").
+				Where(`EXISTS (SELECT 1 FROM groups g WHERE g.id = group_tasks.group_id
+					AND (g.mutawif_id = ? OR g.mutawif_2_id = ? OR g.mutawif_3_id = ?))`, uid, uid, uid),
+		)
+	}
+	return q.Where(cond)
 }
 
-func nonEmpty(s []string) []string {
-	if len(s) == 0 {
-		return []string{""}
+// rolesExcept returns roles with the given role removed.
+func rolesExcept(roles []string, exclude string) []string {
+	out := make([]string, 0, len(roles))
+	for _, r := range roles {
+		if r != exclude {
+			out = append(out, r)
+		}
 	}
-	return s
+	return out
 }
 
 // TaskIndex mirrors TaskController::index.
