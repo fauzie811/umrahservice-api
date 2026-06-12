@@ -223,12 +223,12 @@ func (h *Handler) buildHotels(group *models.Group, rooms []models.Room) []gin.H 
 	for _, r := range rooms {
 		var meta models.RoomMeta
 		decodeJSON(r.Meta, &meta)
-		for _, id := range meta.GroupHotelIDs {
+		for _, id := range meta.GroupHotelIDInts() {
 			idSet[id] = true
 		}
 		for _, rn := range meta.RoomNumbers {
 			if rn.RoomNumber != "" {
-				hotelRoomMap[rn.GroupHotelID] = rn.RoomNumber
+				hotelRoomMap[rn.GroupHotelID.Int64()] = rn.RoomNumber
 			}
 		}
 	}
