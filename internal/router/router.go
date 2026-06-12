@@ -46,6 +46,9 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 		authed.POST("/groups/:id/files/:fileId", h.GroupUpdateFile)
 		authed.DELETE("/groups/:id/files/:fileId", h.GroupDeleteFile)
 
+		authed.GET("/groups/:id/rooming", h.Rooming)
+		authed.PATCH("/groups/:id/rooms/:roomId/room-numbers", h.RoomingUpdate)
+
 		authed.GET("/baggage-item-types", h.BaggageItemTypes)
 		authed.GET("/groups/:id/baggage", h.BaggageIndex)
 		authed.POST("/groups/:id/baggage", h.BaggageStore)
