@@ -124,6 +124,7 @@ func (Manasik) TableName() string { return "manasiks" }
 
 // Itinerary maps `itineraries`. The former `location` column was renamed to
 // `title` (it held the trip name); `location` is now a separate nullable place.
+// The old `is_arrival` boolean was folded into event_type ('arrival').
 type Itinerary struct {
 	ID          uint64     `gorm:"primaryKey"`
 	GroupID     uint64     `gorm:"column:group_id"`
@@ -133,7 +134,6 @@ type Itinerary struct {
 	Location    *string    `gorm:"column:location"`
 	Description *string    `gorm:"column:description"`
 	EventType   *string    `gorm:"column:event_type"`
-	IsArrival   bool       `gorm:"column:is_arrival"`
 	Sort        *int       `gorm:"column:sort"`
 }
 
