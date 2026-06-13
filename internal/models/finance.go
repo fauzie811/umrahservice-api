@@ -21,6 +21,9 @@ type UserCash struct {
 	ExchangeRate *float64       `gorm:"column:exchange_rate"`
 	Details      *string        `gorm:"column:details"`
 	Attachments  datatypes.JSON `gorm:"column:attachments"`
+	IsFixed      bool           `gorm:"column:is_fixed"`
+	RelatedType  *string        `gorm:"column:related_type"`
+	RelatedID    *uint64        `gorm:"column:related_id"`
 	CreatedAt    time.Time      `gorm:"column:created_at"`
 	UpdatedAt    time.Time      `gorm:"column:updated_at"`
 
@@ -33,16 +36,26 @@ func (UserCash) TableName() string { return "user_cashes" }
 // CashCategory maps `cash_categories` (self-referential parent/children).
 type CashCategory struct {
 	ID       uint64  `gorm:"primaryKey"`
-	ParentID *uint64 `gorm:"column:parent_id"`
-	Group    *string `gorm:"column:group"`
-	Type     string  `gorm:"column:type"`
-	Name     string  `gorm:"column:name"`
+	ParentID  *uint64 `gorm:"column:parent_id"`
+	AccountID *uint64 `gorm:"column:account_id"`
+	Group     *string `gorm:"column:group"`
+	Type      string  `gorm:"column:type"`
+	Name      string  `gorm:"column:name"`
 
 	Parent   *CashCategory  `gorm:"foreignKey:ParentID"`
 	Children []CashCategory `gorm:"foreignKey:ParentID"`
 }
 
 func (CashCategory) TableName() string { return "cash_categories" }
+
+// Currency maps `currencies`.
+type Currency struct {
+	ID           uint64  `gorm:"primaryKey"`
+	Code         string  `gorm:"column:code"`
+	ExchangeRate float64 `gorm:"column:exchange_rate"`
+}
+
+func (Currency) TableName() string { return "currencies" }
 
 // FullName mirrors CashCategory::fullName ("parent → name" or "name").
 func (c *CashCategory) FullName() string {

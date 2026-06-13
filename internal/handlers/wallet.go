@@ -220,6 +220,15 @@ func (h *Handler) WalletStore(c *gin.Context) {
 		txn.Attachments = jsonArray([]string{*attachmentKey})
 	}
 
+	// Mirror UserCash::booted() creating: exchange_rate = 1 / Currency::getExchangeRate(currency).
+	// Base currency (SAR) resolves to 1; fall back to 1 when the currency row is missing.
+	exchangeRate := 1.0
+	var cur models.Currency
+	if err := h.DB.Where("code = ?", currency).First(&cur).Error; err == nil && cur.ExchangeRate != 0 {
+		exchangeRate = 1 / cur.ExchangeRate
+	}
+	txn.ExchangeRate = &exchangeRate
+
 	if err := h.DB.Create(&txn).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Could not create transaction."})
 		return
