@@ -39,6 +39,22 @@ func applyGroupRoleScopes(q *gorm.DB, p *auth.Principal, includeCheckIn bool) *g
 	return q
 }
 
+// groupInScope mirrors GroupController::getBaseQuery()->findOrFail($id): the
+// group must be visible to the principal under the current-period, status and
+// role scopes. Returns false (caller should 404) when the group is out of
+// scope, closing the IDOR on the file endpoints.
+func (h *Handler) groupInScope(c *gin.Context, p *auth.Principal, groupID uint64) bool {
+	periodID := support.CurrentPeriodID(h.DB)
+	q := h.DB.Model(&models.Group{}).
+		Scopes(models.CurrentPeriod(periodID, true)).
+		Where("status = ?", resolveGroupStatusFilter(c, p))
+	q = applyGroupRoleScopes(q, p, true)
+
+	var count int64
+	q.Where("groups.id = ?", groupID).Count(&count)
+	return count > 0
+}
+
 // validGroupStatuses mirrors Umrahservice\Groups\Enums\GroupStatus.
 var validGroupStatuses = map[string]bool{
 	"draft": true, "pending": true, "confirmed": true, "cancelled": true,
@@ -139,6 +155,10 @@ func (h *Handler) GroupFiles(c *gin.Context) {
 		notFound(c, "")
 		return
 	}
+	if !h.groupInScope(c, h.principal(c), *groupID) {
+		notFound(c, "")
+		return
+	}
 	files := h.buildGroupFiles(*groupID)
 	c.JSON(http.StatusOK, gin.H{"data": files})
 }
@@ -174,6 +194,10 @@ func (h *Handler) GroupStoreFile(c *gin.Context) {
 	}
 	groupID := parseUintPtr(c.Param("id"))
 	if groupID == nil {
+		notFound(c, "")
+		return
+	}
+	if !h.groupInScope(c, p, *groupID) {
 		notFound(c, "")
 		return
 	}
@@ -222,6 +246,10 @@ func (h *Handler) GroupUpdateFile(c *gin.Context) {
 		notFound(c, "")
 		return
 	}
+	if !h.groupInScope(c, p, *groupID) {
+		notFound(c, "")
+		return
+	}
 
 	var row models.GroupFile
 	if err := h.DB.Where("group_id = ? AND id = ?", *groupID, fileID).First(&row).Error; err != nil {
@@ -257,6 +285,10 @@ func (h *Handler) GroupDeleteFile(c *gin.Context) {
 	groupID := parseUintPtr(c.Param("id"))
 	fileID, _ := atoiParam(c.Param("fileId"))
 	if groupID == nil {
+		notFound(c, "")
+		return
+	}
+	if !h.groupInScope(c, p, *groupID) {
 		notFound(c, "")
 		return
 	}
