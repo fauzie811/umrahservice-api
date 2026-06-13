@@ -255,6 +255,10 @@ func (h *Handler) WalletUpdate(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"message": "You are not allowed to update this transaction."})
 		return
 	}
+	if txn.IsFixed || txn.PicVerifiedAt != nil {
+		c.JSON(http.StatusForbidden, gin.H{"message": "This transaction can no longer be edited."})
+		return
+	}
 
 	typ := requestField(c, "type")
 	amount := requestField(c, "amount")
@@ -357,6 +361,10 @@ func (h *Handler) transformTransaction(trx *models.UserCash, userID uint64) gin.
 		categoryName = &n
 	}
 
+	// editable mirrors UserCashPolicy::update for the finance.has-user-cash role:
+	// owner, not yet PIC-verified, and not a fixed (system) entry.
+	editable := trx.UserID == userID && trx.PicVerifiedAt == nil && !trx.IsFixed
+
 	return gin.H{
 		"id":            itoa(trx.ID),
 		"amount":        trx.Amount,
@@ -364,10 +372,14 @@ func (h *Handler) transformTransaction(trx *models.UserCash, userID uint64) gin.
 		"exchange_rate": trx.ExchangeRate,
 		"type":          typ,
 		"group":         groupName,
+		"group_id":      trx.GroupID,
 		"category":      categoryName,
+		"category_id":   trx.CategoryID,
+		"to_user_id":    trx.ToUserID,
 		"details":       trx.Details,
 		"date":          support.ISO(trx.CashedAt),
 		"attachments":   h.attachmentURLs(trx.Attachments),
+		"editable":      editable,
 	}
 }
 
