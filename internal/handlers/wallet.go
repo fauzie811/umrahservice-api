@@ -242,6 +242,95 @@ func (h *Handler) WalletStore(c *gin.Context) {
 	})
 }
 
+// WalletUpdate mirrors WalletController::update.
+func (h *Handler) WalletUpdate(c *gin.Context) {
+	userID := h.principal(c).User.ID
+
+	var txn models.UserCash
+	if err := h.DB.First(&txn, c.Param("transaction")).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Transaction not found."})
+		return
+	}
+	if txn.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"message": "You are not allowed to update this transaction."})
+		return
+	}
+
+	typ := c.PostForm("type")
+	amount := c.PostForm("amount")
+	currency := c.PostForm("currency")
+	details := c.PostForm("details")
+	date := c.PostForm("date")
+	groupID := c.PostForm("group_id")
+	categoryID := c.PostForm("category_id")
+	toUserID := c.PostForm("to_user_id")
+
+	errs := map[string][]string{}
+	if typ != "income" && typ != "expense" && typ != "transfer" {
+		errs["type"] = []string{"The selected type is invalid."}
+	}
+	if amount == "" {
+		errs["amount"] = []string{"The amount field is required."}
+	}
+	if currency != "SAR" && currency != "IDR" {
+		errs["currency"] = []string{"The selected currency is invalid."}
+	}
+	if details == "" {
+		errs["details"] = []string{"The details field is required."}
+	}
+	if date == "" {
+		errs["date"] = []string{"The date field is required."}
+	}
+	if (typ == "income" || typ == "expense") && categoryID == "" {
+		errs["category_id"] = []string{"The category id field is required when type is " + typ + "."}
+	}
+	if typ == "transfer" && toUserID == "" {
+		errs["to_user_id"] = []string{"The to user id field is required when type is transfer."}
+	}
+	if len(errs) > 0 {
+		validationError(c, errs)
+		return
+	}
+
+	typeMap := map[string]string{
+		"income":   enums.UserCashIncome,
+		"expense":  enums.UserCashExpense,
+		"transfer": enums.UserCashTransfer,
+	}
+
+	txn.Type = typeMap[typ]
+	txn.Currency = currency
+	txn.Details = &details
+	txn.Amount = parseFloat(amount)
+	txn.CashedAt = parseDate(date)
+	txn.GroupID = parseUintPtr(groupID)
+	txn.CategoryID = parseUintPtr(categoryID)
+	txn.ToUserID = parseUintPtr(toUserID)
+
+	if fh, err := c.FormFile("attachment"); err == nil && fh != nil {
+		content, contentType, ext, err := readUpload(fh)
+		if err == nil {
+			if key, err := h.Storage.Store(c.Request.Context(), "attachments", ext, contentType, content); err == nil {
+				txn.Attachments = jsonArray([]string{key})
+			}
+		}
+	}
+
+	// exchange_rate is not recomputed on update (mirrors UserCash::booted, which
+	// only sets it on creating); the existing value is preserved.
+	if err := h.DB.Save(&txn).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Could not update transaction."})
+		return
+	}
+
+	h.DB.Preload("Group.Customer").Preload("Category.Parent").First(&txn, txn.ID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Transaction updated successfully",
+		"data":    h.transformTransaction(&txn, userID),
+	})
+}
+
 func (h *Handler) transformTransaction(trx *models.UserCash, userID uint64) gin.H {
 	typ := ""
 	switch trx.Type {
