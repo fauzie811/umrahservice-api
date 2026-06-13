@@ -120,6 +120,7 @@ func (h *Handler) flightItem(f *models.GroupFlight, typ, title string, code *str
 		data: gin.H{
 			"id":            typ + "-" + itoa(f.ID),
 			"type":          typ,
+			"group_id":      f.GroupID,
 			"group_name":    groupName(f.Group),
 			"customer_name": groupCustomerName(f.Group),
 			"title":         title,
@@ -186,6 +187,7 @@ func (h *Handler) hotelItems(p *auth.Principal, from, to string, checkIn bool) [
 			data: gin.H{
 				"id":            typ + "-" + itoa(gh.ID),
 				"type":          typ,
+				"group_id":      gh.GroupID,
 				"group_name":    groupName(gh.Group),
 				"customer_name": groupCustomerName(gh.Group),
 				"title":         title,
