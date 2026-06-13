@@ -16,7 +16,7 @@ type UserCash struct {
 	CashedAt     *time.Time     `gorm:"column:cashed_at"`
 	Type         string         `gorm:"column:type"` // d|c|t
 	Amount       float64        `gorm:"column:amount"`
-	AmountC      float64        `gorm:"column:amount_c"`
+	AmountC      float64        `gorm:"column:amount_c;->"`
 	Currency     string         `gorm:"column:currency"`
 	ExchangeRate *float64       `gorm:"column:exchange_rate"`
 	Details      *string        `gorm:"column:details"`
