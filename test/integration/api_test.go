@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -68,6 +69,28 @@ func TestCORSPreflight(t *testing.T) {
 	}
 	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Fatalf("Allow-Credentials = %q, want true", got)
+	}
+}
+
+func TestLoginThrottled(t *testing.T) {
+	s := setupServer(t)
+	body := `{"email":"throttle@example.com","password":"wrong"}`
+
+	last := 0
+	for i := 0; i < 6; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		s.engine.ServeHTTP(rec, req)
+		last = rec.Code
+
+		if i < 5 && rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("attempt %d = %d, want 422 (body: %s)", i+1, rec.Code, rec.Body.String())
+		}
+	}
+
+	if last != http.StatusTooManyRequests {
+		t.Fatalf("6th attempt = %d, want 429", last)
 	}
 }
 

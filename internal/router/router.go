@@ -8,6 +8,7 @@ import (
 
 	"umrahservice-api/internal/auth"
 	"umrahservice-api/internal/handlers"
+	"umrahservice-api/internal/ratelimit"
 )
 
 // New builds the Gin engine mirroring routes/api.php (mounted under /api).
@@ -20,9 +21,12 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 	// Sanctum CSRF cookie endpoint (root path, mirroring Laravel Sanctum).
 	r.GET("/sanctum/csrf-cookie", h.CsrfCookie)
 
-	api := r.Group("/api")
+	rl := ratelimit.New()
 
-	api.POST("/login", h.Login)
+	api := r.Group("/api")
+	api.Use(apiThrottle(rl))
+
+	api.POST("/login", loginThrottle(rl), h.Login)
 	api.POST("/logout", auth.Middleware(db), h.Logout)
 
 	authed := api.Group("")
