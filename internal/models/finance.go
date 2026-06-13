@@ -8,24 +8,25 @@ import (
 
 // UserCash maps `user_cashes`.
 type UserCash struct {
-	ID           uint64         `gorm:"primaryKey"`
-	UserID       uint64         `gorm:"column:user_id"`
-	GroupID      *uint64        `gorm:"column:group_id"`
-	CategoryID   *uint64        `gorm:"column:category_id"`
-	ToUserID     *uint64        `gorm:"column:to_user_id"`
-	CashedAt     *time.Time     `gorm:"column:cashed_at"`
-	Type         string         `gorm:"column:type"` // d|c|t
-	Amount       float64        `gorm:"column:amount"`
-	AmountC      float64        `gorm:"column:amount_c;->"`
-	Currency     string         `gorm:"column:currency"`
-	ExchangeRate *float64       `gorm:"column:exchange_rate"`
-	Details      *string        `gorm:"column:details"`
-	Attachments  datatypes.JSON `gorm:"column:attachments"`
-	IsFixed      bool           `gorm:"column:is_fixed"`
-	RelatedType  *string        `gorm:"column:related_type"`
-	RelatedID    *uint64        `gorm:"column:related_id"`
-	CreatedAt    time.Time      `gorm:"column:created_at"`
-	UpdatedAt    time.Time      `gorm:"column:updated_at"`
+	ID            uint64         `gorm:"primaryKey"`
+	UserID        uint64         `gorm:"column:user_id"`
+	GroupID       *uint64        `gorm:"column:group_id"`
+	CategoryID    *uint64        `gorm:"column:category_id"`
+	ToUserID      *uint64        `gorm:"column:to_user_id"`
+	CashedAt      *time.Time     `gorm:"column:cashed_at"`
+	Type          string         `gorm:"column:type"` // d|c|t
+	Amount        float64        `gorm:"column:amount"`
+	AmountC       float64        `gorm:"column:amount_c;->"`
+	Currency      string         `gorm:"column:currency"`
+	ExchangeRate  *float64       `gorm:"column:exchange_rate"`
+	Details       *string        `gorm:"column:details"`
+	Attachments   datatypes.JSON `gorm:"column:attachments"`
+	IsFixed       bool           `gorm:"column:is_fixed"`
+	PicVerifiedAt *time.Time     `gorm:"column:pic_verified_at"`
+	RelatedType   *string        `gorm:"column:related_type"`
+	RelatedID     *uint64        `gorm:"column:related_id"`
+	CreatedAt     time.Time      `gorm:"column:created_at"`
+	UpdatedAt     time.Time      `gorm:"column:updated_at"`
 
 	Group    *Group        `gorm:"foreignKey:GroupID"`
 	Category *CashCategory `gorm:"foreignKey:CategoryID"`
@@ -35,7 +36,7 @@ func (UserCash) TableName() string { return "user_cashes" }
 
 // CashCategory maps `cash_categories` (self-referential parent/children).
 type CashCategory struct {
-	ID       uint64  `gorm:"primaryKey"`
+	ID        uint64  `gorm:"primaryKey"`
 	ParentID  *uint64 `gorm:"column:parent_id"`
 	AccountID *uint64 `gorm:"column:account_id"`
 	Group     *string `gorm:"column:group"`
