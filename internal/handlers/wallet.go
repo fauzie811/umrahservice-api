@@ -145,14 +145,14 @@ func (h *Handler) Categories(c *gin.Context) {
 func (h *Handler) WalletStore(c *gin.Context) {
 	userID := h.principal(c).User.ID
 
-	typ := c.PostForm("type")
-	amount := c.PostForm("amount")
-	currency := c.PostForm("currency")
-	details := c.PostForm("details")
-	date := c.PostForm("date")
-	groupID := c.PostForm("group_id")
-	categoryID := c.PostForm("category_id")
-	toUserID := c.PostForm("to_user_id")
+	typ := requestField(c, "type")
+	amount := requestField(c, "amount")
+	currency := requestField(c, "currency")
+	details := requestField(c, "details")
+	date := requestField(c, "date")
+	groupID := requestField(c, "group_id")
+	categoryID := requestField(c, "category_id")
+	toUserID := requestField(c, "to_user_id")
 
 	errs := map[string][]string{}
 	if typ != "income" && typ != "expense" && typ != "transfer" {
@@ -256,14 +256,14 @@ func (h *Handler) WalletUpdate(c *gin.Context) {
 		return
 	}
 
-	typ := c.PostForm("type")
-	amount := c.PostForm("amount")
-	currency := c.PostForm("currency")
-	details := c.PostForm("details")
-	date := c.PostForm("date")
-	groupID := c.PostForm("group_id")
-	categoryID := c.PostForm("category_id")
-	toUserID := c.PostForm("to_user_id")
+	typ := requestField(c, "type")
+	amount := requestField(c, "amount")
+	currency := requestField(c, "currency")
+	details := requestField(c, "details")
+	date := requestField(c, "date")
+	groupID := requestField(c, "group_id")
+	categoryID := requestField(c, "category_id")
+	toUserID := requestField(c, "to_user_id")
 
 	errs := map[string][]string{}
 	if typ != "income" && typ != "expense" && typ != "transfer" {
