@@ -38,6 +38,7 @@ func New(db *gorm.DB, h *handlers.Handler) *gin.Engine {
 		authed.GET("/wallet/recipients", h.Recipients)
 		authed.GET("/wallet/categories", h.Categories)
 		authed.POST("/wallet/transactions", h.WalletStore)
+		authed.POST("/wallet/transactions/:transaction", h.WalletUpdate)
 
 		authed.GET("/groups", h.GroupIndex)
 		authed.GET("/groups/:id", h.GroupShow)
