@@ -127,24 +127,41 @@ func (h *Handler) GroupShow(c *gin.Context) {
 
 	pdfName, pdfData := h.pifData(&group)
 
-	mutawifNames := []string{}
-	for _, m := range group.Mutawifs() {
-		mutawifNames = append(mutawifNames, m.Name)
-	}
+	hotelHandlers := h.hotelHandlersByCity(&group)
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
-		"id":            group.ID,
-		"group_name":    group.Name,
-		"customer_name": group.CustomerName(),
-		"pax_adults":    group.PaxAdults,
-		"pax_children":  group.PaxChildren,
-		"pax_infants":   group.PaxInfants,
-		"arrival_date":  formatDateOnly(group.ArrivalDate),
-		"progress":      group.Progress,
-		"mutawifs":      mutawifNames,
-		"pdf_name":      pdfName,
-		"pdf_data":      pdfData,
+		"id":               group.ID,
+		"group_name":       group.Name,
+		"customer_name":    group.CustomerName(),
+		"pax_adults":       group.PaxAdults,
+		"pax_children":     group.PaxChildren,
+		"pax_infants":      group.PaxInfants,
+		"arrival_date":     formatDateOnly(group.ArrivalDate),
+		"departure_date":   formatDateOnly(group.DepartureDate),
+		"progress":         group.Progress,
+		"tour_leaders":     h.tourLeaders(&group),
+		"mutawifs":         mutawifContacts(&group),
+		"airport_jeddah":   h.airportArrivalHandlers(group.ID),
+		"check_in_makkah":  handlerForCity(hotelHandlers, "Makkah"),
+		"check_in_madinah": handlerForCity(hotelHandlers, "Madinah"),
+		"pdf_name":         pdfName,
+		"pdf_data":         pdfData,
 	}})
+}
+
+// airportArrivalHandlers returns distinct airport-handler vendors on the group's
+// arrival flights (the "Tim Airport Jeddah" team).
+func (h *Handler) airportArrivalHandlers(groupID uint64) []gin.H {
+	var vendors []models.Vendor
+	h.DB.Table("vendors").
+		Joins("JOIN group_flights gf ON gf.handler_id = vendors.id").
+		Where("gf.group_id = ? AND gf.type = ?", groupID, "arrival").
+		Distinct().Find(&vendors)
+	out := make([]gin.H, 0, len(vendors))
+	for _, v := range vendors {
+		out = append(out, gin.H{"name": v.CompanyName, "phone": v.ContactPhone})
+	}
+	return out
 }
 
 // GroupFiles mirrors Api\GroupController::files. Split out from GroupShow so

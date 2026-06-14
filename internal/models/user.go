@@ -33,8 +33,9 @@ func (u *User) IsSuperAdmin() bool { return u.ID == 1 }
 
 // Vendor maps the `vendors` table (only fields needed by the API).
 type Vendor struct {
-	ID          uint64 `gorm:"primaryKey"`
-	CompanyName string `gorm:"column:company_name"`
+	ID           uint64  `gorm:"primaryKey"`
+	CompanyName  string  `gorm:"column:company_name"`
+	ContactPhone *string `gorm:"column:contact_phone"`
 }
 
 func (Vendor) TableName() string { return "vendors" }
