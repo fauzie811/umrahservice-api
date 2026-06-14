@@ -115,6 +115,7 @@ func (h *Handler) GroupShow(c *gin.Context) {
 		Preload("Mutawif").
 		Preload("Mutawif2").
 		Preload("Mutawif3").
+		Preload("Services").
 		Scopes(models.CurrentPeriod(periodID, true), models.Confirmed)
 	// show does NOT apply the Runner branch.
 	q = applyGroupRoleScopes(q, p, false)
@@ -139,6 +140,7 @@ func (h *Handler) GroupShow(c *gin.Context) {
 		"arrival_date":     formatDateOnly(group.ArrivalDate),
 		"departure_date":   formatDateOnly(group.DepartureDate),
 		"progress":         group.Progress,
+		"services":         groupServices(&group),
 		"tour_leaders":     h.tourLeaders(&group),
 		"mutawifs":         mutawifContacts(&group),
 		"airport_jeddah":   h.airportArrivalHandlers(group.ID),
